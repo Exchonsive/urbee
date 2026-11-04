@@ -370,6 +370,8 @@ do
 	local VirtualInputManager = game:GetService("VirtualInputManager")
 	local lastTriggerTime = 0
 	local TRIGGER_COOLDOWN = 0.2
+	local OWN_GUIS = { UniversalUrbee = true, ControlPanel = true }
+	local lastIndX: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 
 	local function triggerTiming()
 		VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
@@ -379,7 +381,7 @@ do
 
 	local function getActiveTimingBar()
 		for _, gui in ipairs(playerGui:GetChildren()) do
-			if gui:IsA("ScreenGui") and gui.Enabled then
+			if gui:IsA("ScreenGui") and gui.Enabled and not OWN_GUIS[gui.Name] then
 				for _, frame in ipairs(gui:GetDescendants()) do
 					if frame:IsA("GuiObject") and frame.Visible and frame.AbsoluteSize.X > 80 then
 						local size = frame.AbsoluteSize
@@ -412,6 +414,7 @@ do
 
 	track(RunService.RenderStepped:Connect(function()
 		if not state.autoTiming or unloaded then return end
+		if UIS:GetFocusedTextBox() then return end
 		local indicator, targetZone = getActiveTimingBar()
 
 		if indicator and targetZone then
@@ -419,7 +422,12 @@ do
 			local zoneMinX = targetZone.AbsolutePosition.X
 			local zoneMaxX = zoneMinX + targetZone.AbsoluteSize.X
 
-			if indX >= zoneMinX and indX <= zoneMaxX then
+			-- hanya anggap minigame jika indikator benar-benar bergerak
+			local prevX = lastIndX[indicator]
+			lastIndX[indicator] = indX
+			local moving = prevX ~= nil and math.abs(indX - prevX) > 0.5
+
+			if moving and indX >= zoneMinX and indX <= zoneMaxX then
 				if os.clock() - lastTriggerTime > TRIGGER_COOLDOWN then
 					lastTriggerTime = os.clock()
 					triggerTiming()
